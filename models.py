@@ -8,7 +8,7 @@ class User(Base):
     name = Column(String(50))
     email = Column(String(100), unique=True)
     password = Column(String(255))
-    rol = Column(String(20))
+    role = Column(String(20))
 
 class Hamster(Base):
     __tablename__ = "hamsters"
