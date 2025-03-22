@@ -47,13 +47,21 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
 
     return {"message": "User registered"}
 
+class UserLogin(BaseModel):
+    email: str
+    password: str
+    
 @app.post("/login")
-def login(email: str, password: str, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == email).first()
-    if not user or not verify_password(password, user.password):
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    # Buscar al usuario en la base de datos
+    db_user = db.query(User).filter(User.email == user.email).first()
+    
+    # Verificar si el usuario existe y si la contraseña es correcta
+    if not db_user or not verify_password(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_token({"id": user.id, "email": user.email, "role": user.role})
+    # Crear un token JWT
+    token = create_token({"id": db_user.id, "email": db_user.email, "role": db_user.role})
     return {"token": token}
 
 @app.get("/profile")
