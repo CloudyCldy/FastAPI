@@ -2,11 +2,13 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware  # Import CORS middleware
 from sqlalchemy.orm import Session
 from database import engine, SessionLocal, Base
-from models import User, Hamster, Device
+from models import User, Hamster, Device,UserCreate
 from auth import create_token, verify_token, get_db
 from utils import hash_password, verify_password
 from excel_import import import_excel
 import uvicorn
+
+
 
 # ✅ Instancia principal
 app = FastAPI()
@@ -29,22 +31,19 @@ def get_users(db: Session = Depends(get_db)):
     return users
 
 @app.post("/register")
-def register(name: str, email: str, password: str, role: str = "normal", db: Session = Depends(get_db)):
-    # Validación para asegurarse de que el rol sea 'admin' o 'normal'
-    if role not in ['admin', 'normal']:
-        raise HTTPException(status_code=400, detail="Invalid role. Must be 'admin' or 'normal'.")
+async def register(user: UserCreate, db: Session = Depends(get_db)):
+    # Verificar si el usuario ya existe
+    db_user = db.query(User).filter(User.email == user.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Hashear la contraseña
-    hashed_password = hash_password(password)
-
-    # Crear el usuario
-    user = User(name=name, email=email, password=hashed_password, role=role)
-
-    # Agregar el usuario a la base de datos
-    db.add(user)
+    # Crear un nuevo usuario
+    db_user = User(name=user.name, email=user.email, password=user.password, role=user.role)
+    db.add(db_user)
     db.commit()
-
-    return {"message": "User registered"}
+    db.refresh(db_user)
+    
+    return {"message": "Registration successful", "user_id": db_user.id}
 
 @app.post("/login")
 def login(email: str, password: str, db: Session = Depends(get_db)):
@@ -52,7 +51,7 @@ def login(email: str, password: str, db: Session = Depends(get_db)):
     if not user or not verify_password(password, user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_token({"id": user.id, "email": user.email, "rol": user.rol})
+    token = create_token({"id": user.id, "email": user.email, "role": user.role})
     return {"token": token}
 
 @app.get("/profile")
