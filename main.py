@@ -1,17 +1,28 @@
-import uvicorn
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware  # Import CORS middleware
 from sqlalchemy.orm import Session
 from database import engine, SessionLocal, Base
 from models import User, Hamster, Device
 from auth import create_token, verify_token, get_db
 from utils import hash_password, verify_password
 from excel_import import import_excel
+import uvicorn
 
 # ✅ Instancia principal
 app = FastAPI()
 
+# Configurar CORS (permitir solicitudes de tu frontend)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://54.242.77.184:3000"],  # Permitir solicitudes desde el frontend
+    allow_credentials=True,
+    allow_methods=["*"],  # Permitir todos los métodos HTTP (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # Permitir todos los encabezados
+)
+
 # Inicializar la base de datos
 Base.metadata.create_all(bind=engine)
+
 @app.get("/users")
 def get_users(db: Session = Depends(get_db)):
     users = db.query(User).all()
@@ -60,6 +71,48 @@ def get_devices(db: Session = Depends(get_db)):
 def read_root():
     return {"message": "API running!"}
 
-#Ejecutar la API
+@app.get("/devices/{device_id}")
+def get_device(device_id: int, db: Session = Depends(get_db)):
+    device = db.query(Device).filter(Device.id == device_id).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    return device
+
+@app.post("/devices")
+def add_device(name: str, type: str, model: str, db: Session = Depends(get_db)):
+    device = Device(name=name, type=type, model=model)
+    db.add(device)
+    db.commit()
+    db.refresh(device)
+    return {"message": "Device added successfully", "deviceId": device.id}
+
+@app.put("/devices/{device_id}")
+def update_device(device_id: int, name: str, type: str, model: str, db: Session = Depends(get_db)):
+    device = db.query(Device).filter(Device.id == device_id).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    
+    device.name = name
+    device.type = type
+    device.model = model
+    db.commit()
+    db.refresh(device)
+    return {"message": "Device updated successfully"}
+
+@app.delete("/devices/{device_id}")
+def delete_device(device_id: int, db: Session = Depends(get_db)):
+    device = db.query(Device).filter(Device.id == device_id).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    
+    db.delete(device)
+    db.commit()
+    return {"message": "Device deleted successfully"}
+
+@app.get("/blog")
+def get_blog():
+    return {"message": "Blog page - No content yet"}
+
+# Ejecutar la API
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="localhost", port=3000, reload=True)
+    uvicorn.run("main:app", host="localhost", port=8001, reload=True)
