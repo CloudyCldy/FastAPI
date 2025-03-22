@@ -64,13 +64,32 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     token = create_token({"id": db_user.id, "email": db_user.email, "role": db_user.role})
     return {"token": token}
 
+
 @app.get("/profile")
-def get_profile(token: str, db: Session = Depends(get_db)):
-    payload = verify_token(token)
-    user = db.query(User).filter(User.id == payload["id"]).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+def get_profile(
+    authorization: str = Header(None),  # Extraer el encabezado Authorization
+    db: Session = Depends(get_db)
+):
+    # Verificar si el encabezado Authorization está presente
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Token no proporcionado o inválido")
+    
+    # Extraer el token del encabezado
+    token = authorization.split("Bearer ")[1]
+    
+    try:
+        # Verificar el token
+        payload = verify_token(token)
+        
+        # Obtener el usuario desde la base de datos
+        user = db.query(User).filter(User.id == payload["id"]).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        return user
+    except Exception as e:
+        # Manejar errores de token inválido o expirado
+        raise HTTPException(status_code=401, detail="Token inválido o expirado")
 
 @app.post("/import-excel")
 async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_db)):
