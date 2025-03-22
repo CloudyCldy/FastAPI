@@ -12,8 +12,11 @@ app = FastAPI()
 
 # Inicializar la base de datos
 Base.metadata.create_all(bind=engine)
+@app.get("/users")
+def get_users(db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    return users
 
-# Rutas
 @app.post("/register")
 def register(name: str, email: str, password: str, rol: str = "normal", db: Session = Depends(get_db)):
     hashed_password = hash_password(password)
