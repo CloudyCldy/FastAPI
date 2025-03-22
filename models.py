@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from database import Base
+from sqlalchemy import Enum
 
 class User(Base):
     __tablename__ = "users"
@@ -8,7 +9,7 @@ class User(Base):
     name = Column(String(50))
     email = Column(String(100), unique=True)
     password = Column(String(255))
-    role = Column(String(20))
+    role = Column(Enum('admin', 'normal', name='role_enum'))
 
 class Hamster(Base):
     __tablename__ = "hamsters"
