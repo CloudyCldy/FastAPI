@@ -2,21 +2,6 @@ from sqlalchemy import Column, Integer, String, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from database import Base
 from sqlalchemy import Enum
-from pydantic import BaseModel
-from enum import Enum
-
-class RoleEnum(str, Enum):
-    admin = "admin"
-    normal = "normal"
-
-class UserCreate(BaseModel):
-    name: str
-    email: str
-    password: str
-    role: RoleEnum
-
-    class Config:
-        orm_mode = True
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)

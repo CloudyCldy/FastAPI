@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware  # Import CORS middleware
 from sqlalchemy.orm import Session
 from database import engine, SessionLocal, Base
-from models import User, Hamster, Device,UserCreate
+from models import User, Hamster, Device
 from auth import create_token, verify_token, get_db
 from utils import hash_password, verify_password
 from excel_import import import_excel
