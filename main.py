@@ -7,6 +7,8 @@ from auth import create_token, verify_token, get_db
 from utils import hash_password, verify_password
 from excel_import import import_excel
 import uvicorn
+from pydantic import BaseModel
+
 
 # ✅ Instancia principal
 app = FastAPI()
@@ -27,21 +29,20 @@ Base.metadata.create_all(bind=engine)
 def get_users(db: Session = Depends(get_db)):
     users = db.query(User).all()
     return users
+class UserRegister(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: str = "normal"
 
 @app.post("/register")
-def register(name: str, email: str, password: str, role: str = "normal", db: Session = Depends(get_db)):
-    # Validación para asegurarse de que el rol sea 'admin' o 'normal'
-    if role not in ['admin', 'normal']:
+def register(user: UserRegister, db: Session = Depends(get_db)):
+    if user.role not in ['admin', 'normal']:
         raise HTTPException(status_code=400, detail="Invalid role. Must be 'admin' or 'normal'.")
     
-    # Hashear la contraseña
-    hashed_password = hash_password(password)
-
-    # Crear el usuario
-    user = User(name=name, email=email, password=hashed_password, role=role)
-
-    # Agregar el usuario a la base de datos
-    db.add(user)
+    hashed_password = hash_password(user.password)
+    new_user = User(name=user.name, email=user.email, password=hashed_password, role=user.role)
+    db.add(new_user)
     db.commit()
 
     return {"message": "User registered"}
