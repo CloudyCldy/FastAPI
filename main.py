@@ -29,11 +29,21 @@ def get_users(db: Session = Depends(get_db)):
     return users
 
 @app.post("/register")
-def register(name: str, email: str, password: str, rol: str = "normal", db: Session = Depends(get_db)):
+def register(name: str, email: str, password: str, role: str = "normal", db: Session = Depends(get_db)):
+    # Validación para asegurarse de que el rol sea 'admin' o 'normal'
+    if role not in ['admin', 'normal']:
+        raise HTTPException(status_code=400, detail="Invalid role. Must be 'admin' or 'normal'.")
+    
+    # Hashear la contraseña
     hashed_password = hash_password(password)
-    user = User(name=name, email=email, password=hashed_password, rol=rol)
+
+    # Crear el usuario
+    user = User(name=name, email=email, password=hashed_password, role=role)
+
+    # Agregar el usuario a la base de datos
     db.add(user)
     db.commit()
+
     return {"message": "User registered"}
 
 @app.post("/login")
