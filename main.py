@@ -151,7 +151,7 @@ def get_sensores(db: Session = Depends(get_db)):
     
     return [
         SensorDataOut(
-            id=sensor.id,  # ✅ Asegurar que 'id' está incluido
+            id=id,  # ✅ Asegurar que 'id' está incluido
             device_id=sensor.device_id,  # ✅ Cambiar 'sensor_id' a 'device_id'
             temperature=sensor.temperature,
             humidity=sensor.humidity,
