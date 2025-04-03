@@ -12,7 +12,7 @@ class User(Base):
     name = Column(String(50))
     email = Column(String(100), unique=True)
     password = Column(String(255))
-    role = Column(Enum('admin', 'normal', name='role_enum'))
+    rol = Column(Enum('admin', 'normal', name='rol_enum'))
 
     # Relación con Hamster (opcional si la tienes)
     hamsters = relationship("Hamster", back_populates="user")
