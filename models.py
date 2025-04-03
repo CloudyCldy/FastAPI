@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, Float, DateTime,TIMESTAMP
+from sqlalchemy import Column, Integer, String, ForeignKey, Text, Float, DateTime, TIMESTAMP
 from sqlalchemy.orm import relationship
 from sqlalchemy import Enum
 from database import Base
@@ -17,7 +17,6 @@ class User(Base):
     rol = Column(Enum('admin', 'normal', name='rol_enum'))
     
     devices = relationship("Device", back_populates="user")
-
     hamsters = relationship("Hamster", back_populates="user")
 
 # Modelo de salida para los datos del sensor
@@ -28,7 +27,8 @@ class SensorDataOut(BaseModel):
     recorded_at: datetime
 
     class Config:
-        orm_mode = True  # Permite la conversión automática de ORM a Pydantic
+        orm_mode = True  
+
 
 class Device(Base):
     __tablename__ = 'devices'
@@ -40,9 +40,10 @@ class Device(Base):
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
 
     user = relationship("User", back_populates="devices")
-    user = relationship("User", back_populates="devices")
 
-    
+    # Relación con SensorReading para obtener las lecturas de sensores asociadas al dispositivo
+    sensor_readings = relationship("SensorReading", backref="device", lazy="dynamic")
+
 class Hamster(Base):
     __tablename__ = 'hamsters'
     id = Column(Integer, primary_key=True)
