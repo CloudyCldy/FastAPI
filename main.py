@@ -1,92 +1,164 @@
-from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Header
+from fastapi.middleware.cors import CORSMiddleware  # Import CORS middleware
+from sqlalchemy.orm import Session
+from database import engine, SessionLocal, Base
+from models import User, Hamster, Device, SensorDataOut, SensorReading  # Asegúrate de tener 'SensorReading' en models
+from auth import create_token, verify_token, get_db
+from utils import hash_password, verify_password
+from excel_import import import_excel
+import uvicorn
 from pydantic import BaseModel
-from typing import Optional, List
-from datetime import datetime, timedelta
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Enum, Text
-from sqlalchemy.orm import sessionmaker, Session, declarative_base
-from sqlalchemy.sql import func
-import os
-from dotenv import load_dotenv
+from typing import List  # Importar List para usarlo como tipo de datos en la respuesta
 
-# Load environment variables
-load_dotenv()
-
-# Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://admin:hobito22@int.c0b28yg0kqqf.us-east-1.rds.amazonaws.com/hamstech")
-
-# Create SQLAlchemy engine
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-# Security configuration
-SECRET_KEY = os.getenv("JWT_SECRET", "hamtech")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
-
-# Database Models
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(50))
-    email = Column(String(100), unique=True)
-    password = Column(String(255))
-    rol = Column(Enum('admin', 'normal', name='rol_enum'))
-
-# App setup
+# ✅ Instancia principal
 app = FastAPI()
 
-# CORS configuration
+# Configurar CORS (permitir solicitudes de tu frontend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://54.242.77.184:3000"],  # Permitir solicitudes desde el frontend
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Permitir todos los métodos HTTP (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # Permitir todos los encabezados
 )
 
-# Dependency to get DB session
-def get_db():
-    db = SessionLocal()
+# Inicializar la base de datos
+Base.metadata.create_all(bind=engine)
+
+@app.get("/users")
+def get_users(db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    return users
+
+class UserRegister(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: str = "normal"
+
+@app.post("/register")
+def register(user: UserRegister, db: Session = Depends(get_db)):
+    if user.role not in ['admin', 'normal']:
+        raise HTTPException(status_code=400, detail="Invalid role. Must be 'admin' or 'normal'.")
+    
+    hashed_password = hash_password(user.password)
+    new_user = User(name=user.name, email=user.email, password=hashed_password, role=user.role)
+    db.add(new_user)
+    db.commit()
+
+    return {"message": "User registered"}
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+@app.post("/login")
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.email == user.email).first()
+    
+    if not db_user or not verify_password(user.password, db_user.password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_token({"id": db_user.id, "email": db_user.email, "role": db_user.role})
+    return {"token": token}
+
+@app.get("/profile")
+def get_profile(
+    authorization: str = Header(None),  # Extraer el encabezado Authorization
+    db: Session = Depends(get_db)
+):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Token no proporcionado o inválido")
+    
+    token = authorization.split("Bearer ")[1]
+    
     try:
-        yield db
-    finally:
-        db.close()
+        payload = verify_token(token)
+        user = db.query(User).filter(User.id == payload["id"]).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        return user
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Token inválido o expirado")
 
-# Security functions
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+@app.post("/import-excel")
+async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    return await import_excel(file, db)
 
-def get_password_hash(password):
-    return pwd_context.hash(password)
+@app.get("/hamsters")
+def get_hamsters(db: Session = Depends(get_db)):
+    hamsters = db.query(Hamster).all()
+    return hamsters
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-# Login route
-@app.post("/login", response_model=dict)
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.password):
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
-
-    access_token = create_access_token(data={"id": user.id, "email": user.email, "rol": user.rol})
-    return {"access_token": access_token, "token_type": "bearer", "dashboard": f"/dashboard/{user.rol}"}
+@app.get("/devices")
+def get_devices(db: Session = Depends(get_db)):
+    devices = db.query(Device).all()
+    return devices
 
 @app.get("/")
-async def root():
-    return {"message": "Hamstech API is running"}
+def read_root():
+    return {"message": "API running!"}
 
+@app.get("/devices/{device_id}")
+def get_device(device_id: int, db: Session = Depends(get_db)):
+    device = db.query(Device).filter(Device.id == device_id).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    return device
+
+@app.post("/devices")
+def add_device(name: str, type: str, model: str, db: Session = Depends(get_db)):
+    device = Device(name=name, type=type, model=model)
+    db.add(device)
+    db.commit()
+    db.refresh(device)
+    return {"message": "Device added successfully", "deviceId": device.id}
+
+@app.put("/devices/{device_id}")
+def update_device(device_id: int, name: str, type: str, model: str, db: Session = Depends(get_db)):
+    device = db.query(Device).filter(Device.id == device_id).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    
+    device.name = name
+    device.type = type
+    device.model = model
+    db.commit()
+    db.refresh(device)
+    return {"message": "Device updated successfully"}
+
+@app.delete("/devices/{device_id}")
+def delete_device(device_id: int, db: Session = Depends(get_db)):
+    device = db.query(Device).filter(Device.id == device_id).first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    
+    db.delete(device)
+    db.commit()
+    return {"message": "Device deleted successfully"}
+
+@app.get("/blog")
+def get_blog():
+    return {"message": "Blog page - No content yet"}
+
+@app.get("/sensores", response_model=List[SensorDataOut])
+def get_sensores(db: Session = Depends(get_db)):
+    sensores = db.query(SensorReading).all()
+    
+    if not sensores:
+        raise HTTPException(status_code=404, detail="No sensor readings found")
+    
+    return [
+        SensorDataOut(
+            sensor_id=sensor.device_id,  # Asegúrate de que 'device_id' esté disponible en tu consulta
+            temperature=sensor.temperature,
+            humidity=sensor.humidity,
+            recorded_at=sensor.recorded_at
+        ) 
+        for sensor in sensores
+    ]
+
+# Ejecutar la API
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run("main:app", host="localhost", port=8001, reload=True)
