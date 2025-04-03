@@ -151,13 +151,15 @@ def get_sensores(db: Session = Depends(get_db)):
     
     return [
         SensorDataOut(
-            sensor_id=sensor.device_id,  # Asegúrate de que 'device_id' esté disponible en tu consulta
+            id=sensor.id,  # ✅ Asegurar que 'id' está incluido
+            device_id=sensor.device_id,  # ✅ Cambiar 'sensor_id' a 'device_id'
             temperature=sensor.temperature,
             humidity=sensor.humidity,
             recorded_at=sensor.recorded_at
         ) 
         for sensor in sensores
     ]
+
 
 # Ejecutar la API
 if __name__ == "__main__":
