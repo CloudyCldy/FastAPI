@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from database import engine, SessionLocal, Base
 from models import User, Hamster, Device, SensorDataOut, SensorReading  # Asegúrate de tener 'SensorReading' en models
 from auth import create_token, verify_token, get_db
-from utils import hash_password, verify_password  # Importa las funciones actualizadas para el hash de contraseñas
+from utils import hash_password, verify_password
 from excel_import import import_excel
 import uvicorn
 from pydantic import BaseModel
@@ -41,7 +41,7 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
     if user.rol not in ['admin', 'normal']:
         raise HTTPException(status_code=400, detail="Invalid rol. Must be 'admin' or 'normal'.")
     
-    hashed_password = hash_password(user.password)  # Utiliza la nueva función con Argon2
+    hashed_password = hash_password(user.password)
     new_user = User(name=user.name, email=user.email, password=hashed_password, rol=user.rol)
     db.add(new_user)
     db.commit()
@@ -56,7 +56,7 @@ class UserLogin(BaseModel):
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     
-    if not db_user or not verify_password(user.password, db_user.password):  # Verifica la contraseña con Argon2
+    if not db_user or not verify_password(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_token({"id": db_user.id, "email": db_user.email, "rol": db_user.rol})
