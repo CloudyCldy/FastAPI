@@ -90,3 +90,8 @@ class HamsterCreate(BaseModel):
 
     class Config:
         orm_mode = True
+
+class SensorData(BaseModel):
+    device_id: str
+    temperature: float
+    humidity: float

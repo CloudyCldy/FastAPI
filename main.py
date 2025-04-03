@@ -2,13 +2,17 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Header
 from fastapi.middleware.cors import CORSMiddleware  # Import CORS middleware
 from sqlalchemy.orm import Session
 from database import engine, SessionLocal, Base
-from models import User, Hamster, Device, SensorDataOut, SensorReading  # Asegúrate de tener 'SensorReading' en models
+from models import User, Hamster, Device, SensorDataOut, SensorReading,SensorData  # Asegúrate de tener 'SensorReading' en models
 from auth import create_token, verify_token, get_db
 from utils import hash_password, verify_password
 from excel_import import import_excel
 import uvicorn
 from pydantic import BaseModel
 from typing import List  # Importar List para usarlo como tipo de datos en la respuesta
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+
+
 
 # ✅ Instancia principal
 app = FastAPI()
@@ -158,6 +162,31 @@ def get_sensores(db: Session = Depends(get_db)):
         ) 
         for sensor in sensores
     ]
+
+
+# Endpoint para guardar los datos del sensor
+@app.post("/sensor-data")
+async def save_sensor_data(sensor_data: SensorData, db: AsyncSession = Depends(get_db)):
+    if not sensor_data.device_id or sensor_data.temperature is None or sensor_data.humidity is None:
+        raise HTTPException(status_code=400, detail="Missing fields")
+
+    try:
+        # Guardando los datos en la base de datos
+        new_data = SensorReading(
+            device_id=sensor_data.device_id,
+            temperature=sensor_data.temperature,
+            humidity=sensor_data.humidity
+        )
+        db.add(new_data)
+        await db.commit()
+
+        # Log de los datos guardados
+        print(f"Datos guardados: Device: {sensor_data.device_id}, Temp: {sensor_data.temperature}C, Hum: {sensor_data.humidity}%")
+        return {"message": "Data saved successfully", "id": new_data.id}
+
+    except SQLAlchemyError as error:
+        print("Error saving data:", error)
+        raise HTTPException(status_code=500, detail="Server error")
 
 # Ejecutar la API
 if __name__ == "__main__":
