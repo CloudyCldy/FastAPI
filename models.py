@@ -15,8 +15,9 @@ class User(Base):
     email = Column(String(100), unique=True)
     password = Column(String(255))
     rol = Column(Enum('admin', 'normal', name='rol_enum'))
+    
+    devices = relationship("Device", back_populates="user")
 
-    # Relación con Hamster (opcional si la tienes)
     hamsters = relationship("Hamster", back_populates="user")
 
 # Modelo de salida para los datos del sensor
@@ -39,6 +40,8 @@ class Device(Base):
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
 
     user = relationship("User", back_populates="devices")
+    user = relationship("User", back_populates="devices")
+
     
 class Hamster(Base):
     __tablename__ = 'hamsters'
