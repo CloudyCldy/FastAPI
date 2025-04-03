@@ -160,7 +160,36 @@ def get_sensores(db: Session = Depends(get_db)):
         for sensor in sensores
     ]
 
+class SensorDataIn(BaseModel):
+    device_id: int
+    temperature: float
+    humidity: float
 
+@app.post("/sensor-data")
+async def create_sensor_data(sensor_data: SensorDataIn, db: Session = Depends(get_db)):
+    # Validar que los campos no estén vacíos (aunque FastAPI los validará a través de Pydantic)
+    if not sensor_data.device_id or not sensor_data.temperature or not sensor_data.humidity:
+        raise HTTPException(status_code=400, detail="Missing fields")
+
+    try:
+        # Crear un nuevo registro de lectura de sensor
+        new_sensor_data = SensorReading(
+            device_id=sensor_data.device_id,
+            temperature=sensor_data.temperature,
+            humidity=sensor_data.humidity
+        )
+        
+        # Agregar el nuevo registro a la base de datos
+        db.add(new_sensor_data)
+        db.commit()
+        db.refresh(new_sensor_data)
+
+        # Devolver el mensaje de éxito con el ID del nuevo registro
+        return {"message": "Data saved successfully", "id": new_sensor_data.id}
+
+    except Exception as e:
+        # Manejar el error en caso de una excepción
+        raise HTTPException(status_code=500, detail=f"Error saving data: {str(e)}")
 
 # Ejecutar la API
 if __name__ == "__main__":
