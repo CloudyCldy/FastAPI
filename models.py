@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, Float, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, Text, Float, DateTime,TIMESTAMP
 from sqlalchemy.orm import relationship
 from sqlalchemy import Enum
 from database import Base
@@ -29,10 +29,15 @@ class SensorDataOut(BaseModel):
 
 class Device(Base):
     __tablename__ = 'devices'
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    # otras columnas
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    device_name = Column(String(100), nullable=False)
+    location = Column(String(100), nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
 
+    user = relationship("User", back_populates="devices")
+    
 class Hamster(Base):
     __tablename__ = 'hamsters'
     id = Column(Integer, primary_key=True)
