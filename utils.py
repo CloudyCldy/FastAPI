@@ -1,9 +1,18 @@
-from passlib.context import CryptContext
+from argon2 import PasswordHasher
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Instancia del hasher
+ph = PasswordHasher()
 
-def hash_password(password: str):
-    return pwd_context.hash(password)
+# Función para hashear contraseñas
+def hash_password(password: str) -> str:
+    return ph.hash(password)
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+# Función para verificar contraseñas
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    try:
+        # Verificar la contraseña
+        ph.verify(hashed_password, plain_password)
+        return True
+    except Exception:
+        # Si la contraseña no es válida
+        return False
