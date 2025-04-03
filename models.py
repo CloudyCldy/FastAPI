@@ -42,7 +42,7 @@ class Device(Base):
     user = relationship("User", back_populates="devices")
 
     # Relación con SensorReading para obtener las lecturas de sensores asociadas al dispositivo
-    sensor_readings = relationship("SensorReading", backref="device", lazy="dynamic")
+    sensor_readings = relationship("SensorReading", backref="sensor_readings_device", lazy="dynamic")
 
 class Hamster(Base):
     __tablename__ = 'hamsters'
