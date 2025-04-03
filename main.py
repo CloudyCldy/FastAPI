@@ -93,12 +93,7 @@ def get_hamsters(db: Session = Depends(get_db)):
 
 @app.get("/devices")
 def get_devices(db: Session = Depends(get_db)):
-    devices = db.query(Device).all()
-    return devices
-
-@app.get("/")
-def read_root():
-    return {"message": "API running!"}
+    return db.query(Device).all()
 
 @app.get("/devices/{device_id}")
 def get_device(device_id: int, db: Session = Depends(get_db)):
@@ -108,22 +103,24 @@ def get_device(device_id: int, db: Session = Depends(get_db)):
     return device
 
 @app.post("/devices")
-def add_device(name: str, type: str, model: str, db: Session = Depends(get_db)):
-    device = Device(name=name, type=type, model=model)
+def add_device(device_name: str, location: str = None, user_id: int = None, db: Session = Depends(get_db)):
+    device = Device(device_name=device_name, location=location, user_id=user_id)
     db.add(device)
     db.commit()
     db.refresh(device)
     return {"message": "Device added successfully", "deviceId": device.id}
 
 @app.put("/devices/{device_id}")
-def update_device(device_id: int, name: str, type: str, model: str, db: Session = Depends(get_db)):
+def update_device(device_id: int, device_name: str = None, location: str = None, db: Session = Depends(get_db)):
     device = db.query(Device).filter(Device.id == device_id).first()
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
     
-    device.name = name
-    device.type = type
-    device.model = model
+    if device_name:
+        device.device_name = device_name
+    if location is not None:
+        device.location = location
+    
     db.commit()
     db.refresh(device)
     return {"message": "Device updated successfully"}
@@ -137,6 +134,9 @@ def delete_device(device_id: int, db: Session = Depends(get_db)):
     db.delete(device)
     db.commit()
     return {"message": "Device deleted successfully"}
+@app.get("/")
+def read_root():
+    return {"message": "API running!"}
 
 @app.get("/blog")
 def get_blog():
