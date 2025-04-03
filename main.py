@@ -34,15 +34,15 @@ class UserRegister(BaseModel):
     name: str
     email: str
     password: str
-    role: str = "normal"
+    rol: str = "normal"
 
 @app.post("/register")
 def register(user: UserRegister, db: Session = Depends(get_db)):
-    if user.role not in ['admin', 'normal']:
-        raise HTTPException(status_code=400, detail="Invalid role. Must be 'admin' or 'normal'.")
+    if user.rol not in ['admin', 'normal']:
+        raise HTTPException(status_code=400, detail="Invalid rol. Must be 'admin' or 'normal'.")
     
     hashed_password = hash_password(user.password)
-    new_user = User(name=user.name, email=user.email, password=hashed_password, role=user.role)
+    new_user = User(name=user.name, email=user.email, password=hashed_password, rol=user.rol)
     db.add(new_user)
     db.commit()
 
@@ -59,7 +59,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     if not db_user or not verify_password(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_token({"id": db_user.id, "email": db_user.email, "role": db_user.role})
+    token = create_token({"id": db_user.id, "email": db_user.email, "rol": db_user.rol})
     return {"token": token}
 
 @app.get("/profile")
