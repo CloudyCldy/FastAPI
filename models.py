@@ -1,11 +1,9 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, Float, DateTime, TIMESTAMP
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, DateTime, TIMESTAMP, Enum
 from sqlalchemy.orm import relationship
-from sqlalchemy import Enum
 from database import Base
 from pydantic import BaseModel
 from datetime import datetime
 from sqlalchemy.sql import func
-
 
 # Definición de la tabla User
 class User(Base):
@@ -28,7 +26,6 @@ class SensorDataOut(BaseModel):
 
     class Config:
         orm_mode = True  
-
 
 class Device(Base):
     __tablename__ = 'devices'
@@ -69,8 +66,8 @@ class SensorReading(Base):
     humidity = Column(Float)
     recorded_at = Column(DateTime, default=datetime.utcnow)
 
-    # Relación con Device
-    device = relationship("Device", backref="sensor_readings")
+    # Relación con Device, cambiando el nombre del backref
+    device = relationship("Device", backref="sensor_readings_backref")
 
 # Modelos de entrada (Pydantic models)
 class SensorReadingCreate(BaseModel):
