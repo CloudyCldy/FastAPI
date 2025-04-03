@@ -4,6 +4,8 @@ from sqlalchemy import Enum
 from database import Base
 from pydantic import BaseModel
 from datetime import datetime
+from sqlalchemy.sql import func
+
 
 # Definición de la tabla User
 class User(Base):
