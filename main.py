@@ -2,17 +2,13 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Header
 from fastapi.middleware.cors import CORSMiddleware  # Import CORS middleware
 from sqlalchemy.orm import Session
 from database import engine, SessionLocal, Base
-from models import User, Hamster, Device, SensorDataOut, SensorReading,SensorData  # Asegúrate de tener 'SensorReading' en models
+from models import User, Hamster, Device, SensorDataOut, SensorReading  # Asegúrate de tener 'SensorReading' en models
 from auth import create_token, verify_token, get_db
 from utils import hash_password, verify_password
 from excel_import import import_excel
 import uvicorn
 from pydantic import BaseModel
 from typing import List  # Importar List para usarlo como tipo de datos en la respuesta
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-
-
 
 # ✅ Instancia principal
 app = FastAPI()
@@ -97,7 +93,12 @@ def get_hamsters(db: Session = Depends(get_db)):
 
 @app.get("/devices")
 def get_devices(db: Session = Depends(get_db)):
-    return db.query(Device).all()
+    devices = db.query(Device).all()
+    return devices
+
+@app.get("/")
+def read_root():
+    return {"message": "API running!"}
 
 @app.get("/devices/{device_id}")
 def get_device(device_id: int, db: Session = Depends(get_db)):
@@ -107,24 +108,22 @@ def get_device(device_id: int, db: Session = Depends(get_db)):
     return device
 
 @app.post("/devices")
-def add_device(device_name: str, location: str = None, user_id: int = None, db: Session = Depends(get_db)):
-    device = Device(device_name=device_name, location=location, user_id=user_id)
+def add_device(name: str, type: str, model: str, db: Session = Depends(get_db)):
+    device = Device(name=name, type=type, model=model)
     db.add(device)
     db.commit()
     db.refresh(device)
     return {"message": "Device added successfully", "deviceId": device.id}
 
 @app.put("/devices/{device_id}")
-def update_device(device_id: int, device_name: str = None, location: str = None, db: Session = Depends(get_db)):
+def update_device(device_id: int, name: str, type: str, model: str, db: Session = Depends(get_db)):
     device = db.query(Device).filter(Device.id == device_id).first()
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
     
-    if device_name:
-        device.device_name = device_name
-    if location is not None:
-        device.location = location
-    
+    device.name = name
+    device.type = type
+    device.model = model
     db.commit()
     db.refresh(device)
     return {"message": "Device updated successfully"}
@@ -138,9 +137,6 @@ def delete_device(device_id: int, db: Session = Depends(get_db)):
     db.delete(device)
     db.commit()
     return {"message": "Device deleted successfully"}
-@app.get("/")
-def read_root():
-    return {"message": "API running!"}
 
 @app.get("/blog")
 def get_blog():
@@ -162,31 +158,6 @@ def get_sensores(db: Session = Depends(get_db)):
         ) 
         for sensor in sensores
     ]
-
-
-# Endpoint para guardar los datos del sensor
-@app.post("/sensor-data")
-async def save_sensor_data(sensor_data: SensorData, db: AsyncSession = Depends(get_db)):
-    if not sensor_data.device_id or sensor_data.temperature is None or sensor_data.humidity is None:
-        raise HTTPException(status_code=400, detail="Missing fields")
-
-    try:
-        # Guardando los datos en la base de datos
-        new_data = SensorReading(
-            device_id=sensor_data.device_id,
-            temperature=sensor_data.temperature,
-            humidity=sensor_data.humidity
-        )
-        db.add(new_data)
-        await db.commit()
-
-        # Log de los datos guardados
-        print(f"Datos guardados: Device: {sensor_data.device_id}, Temp: {sensor_data.temperature}C, Hum: {sensor_data.humidity}%")
-        return {"message": "Data saved successfully", "id": new_data.id}
-
-    except SQLAlchemyError as error:
-        print("Error saving data:", error)
-        raise HTTPException(status_code=500, detail="Server error")
 
 # Ejecutar la API
 if __name__ == "__main__":
