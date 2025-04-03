@@ -147,18 +147,19 @@ def get_sensores(db: Session = Depends(get_db)):
     sensores = db.query(SensorReading).all()
     
     if not sensores:
-        raise HTTPException(status_code=404, detail="No sensor readings found")
+        raise HTTPException(status_code=404, detail="No se encontraron lecturas de sensores")
     
     return [
         SensorDataOut(
-            id=id,  # ✅ Asegurar que 'id' está incluido
-            device_id=sensor.device_id,  # ✅ Cambiar 'sensor_id' a 'device_id'
+            id=sensor.id,  # Este es el campo 'id' de SensorReading
+            device_id=sensor.device_id,  # Asegúrate de usar 'device_id'
             temperature=sensor.temperature,
             humidity=sensor.humidity,
             recorded_at=sensor.recorded_at
         ) 
         for sensor in sensores
     ]
+
 
 
 # Ejecutar la API
