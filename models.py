@@ -18,11 +18,13 @@ class User(Base):
     hamsters = relationship("Hamster", back_populates="user")
 
 # Modelo de salida para los datos del sensor
+
 class SensorDataOut(BaseModel):
-    sensor_id: int
+    id: int
+    device_id: int  # Asegúrate de que este campo esté en el modelo y no 'sensor_id'
     temperature: float
     humidity: float
-    recorded_at: datetime
+    recorded_at: str  # O usa datetime dependiendo de cómo manejes las fechas
 
     class Config:
         orm_mode = True  
