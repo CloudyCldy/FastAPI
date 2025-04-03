@@ -24,7 +24,7 @@ class SensorDataOut(BaseModel):
     device_id: int  # Asegúrate de que este campo esté en el modelo y no 'sensor_id'
     temperature: float
     humidity: float
-    recorded_at: str  # O usa datetime dependiendo de cómo manejes las fechas
+    recorded_at: datetime  # Usar datetime en lugar de string
 
     class Config:
         orm_mode = True  
